@@ -18,19 +18,19 @@ libmincrypt.a:
 	make -C libmincrypt
 
 mkbootimg$(EXE):mkbootimg.o
-	$(CC) -o $@ $^ -L. -lmincrypt -static
+	$(CC) -g -o $@ $^ -L. -lmincrypt
 	$(STRIP) $@
 
 mkbootimg.o:mkbootimg.c
-	$(CC) -o $@ -c $< -I.
+	$(CC) -g -o $@ -c $< -I.
 
 
 unpackbootimg$(EXE):unpackbootimg.o
-	$(CC) -o $@ $^ -static
+	$(CC) -g -o $@ $^
 	$(STRIP) $@
 
 unpackbootimg.o:unpackbootimg.c
-	$(CC) -o $@ -c $< 
+	$(CC) -g -o $@ -c $< 
 
 clean:
 	$(RM) mkbootimg mkbootimg.o unpackbootimg unpackbootimg.o 
