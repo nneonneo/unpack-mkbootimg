@@ -85,11 +85,19 @@ int main(int argc, char** argv)
     printf("BOARD_KERNEL_CMDLINE %s\n", header.cmdline);
     printf("BOARD_KERNEL_BASE %08x\n", header.kernel_addr - 0x00008000);
     printf("BOARD_PAGE_SIZE %d\n", header.page_size);
+    printf("BOARD_RAMDISK_ADDR %08x\n", header.ramdisk_addr);
     
     if (pagesize == 0) {
         pagesize = header.page_size;
     }
     
+    if(mkdir(directory, 0777) < 0) {
+        if(errno != EEXIST) {
+            printf("could not make output directory!\n");
+            return -1;
+        }
+    }
+
     //printf("cmdline...\n");
     sprintf(tmp, "%s/%s", directory, basename(filename));
     strcat(tmp, "-cmdline");
@@ -100,6 +108,12 @@ int main(int argc, char** argv)
     strcat(tmp, "-base");
     char basetmp[200];
     sprintf(basetmp, "%08x", header.kernel_addr - 0x00008000);
+    write_string_to_file(tmp, basetmp);
+
+    //printf("base...\n");
+    sprintf(tmp, "%s/%s", directory, basename(filename));
+    strcat(tmp, "-ramdiskaddr");
+    sprintf(basetmp, "%08x", header.ramdisk_addr);
     write_string_to_file(tmp, basetmp);
 
     //printf("pagesize...\n");
