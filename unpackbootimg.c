@@ -6,6 +6,7 @@
 #include <errno.h>
 #include <limits.h>
 #include <libgen.h>
+#include <sys/stat.h>
 
 #include "mincrypt/sha.h"
 #include "bootimg.h"
@@ -30,12 +31,12 @@ int read_padding(FILE* f, unsigned itemsize, int pagesize)
     return count;
 }
 
-void write_string_to_file(char* base, char *suffix, char* string) {
+void write_string_to_file(char *base, char *suffix, char *string) {
     char file[PATH_MAX];
     sprintf(file, "%s-%s", base, suffix);
     FILE* f = fopen(file, "w");
     if(!f) {
-        perror("failed to write file");
+        fprintf(stderr, "failed to write file %s: %s\n", file, strerror(errno));
         exit(-1);
     }
     fwrite(string, strlen(string), 1, f);
@@ -61,11 +62,9 @@ void write_chunk_to_file(FILE *infile, char *base, char *suffix, unsigned size) 
 }
 
 int usage() {
-    printf("usage: unpackbootimg\n");
-    printf("\t-i|--input boot.img\n");
-    printf("\t[ -o|--output output_directory]\n");
-    printf("\t[ -p|--pagesize <size-in-hexadecimal> ]\n");
-    return 0;
+    printf("usage: unpackbootimg boot.img [outdir]\n");
+    printf("\t[-p|--pagesize <size-in-hexadecimal>]\n");
+    return 1;
 }
 
 int main(int argc, char** argv)
@@ -75,33 +74,46 @@ int main(int argc, char** argv)
     char* directory = "./";
     char* filename = NULL;
     int pagesize = 0;
+    int curarg = 1;
+    int posarg = 0;
 
-    argc--;
-    argv++;
-    while(argc > 0){
-        char *arg = argv[0];
-        char *val = argv[1];
-        argc -= 2;
-        argv += 2;
+    while(curarg < argc){
+        char *arg = argv[curarg++];
+
         if(!strcmp(arg, "--input") || !strcmp(arg, "-i")) {
-            filename = val;
+            if(curarg >= argc)
+                return usage();
+            filename = argv[curarg++];
+            posarg = 1;
         } else if(!strcmp(arg, "--output") || !strcmp(arg, "-o")) {
-            directory = val;
+            if(curarg >= argc)
+                return usage();
+            directory = argv[curarg++];
+            posarg = 2;
         } else if(!strcmp(arg, "--pagesize") || !strcmp(arg, "-p")) {
-            pagesize = strtoul(val, 0, 16);
+            if(curarg >= argc)
+                return usage();
+            pagesize = strtoul(argv[curarg++], 0, 16);
+        } else if(posarg == 0) {
+            filename = arg;
+            posarg++;
+        } else if(posarg == 1) {
+            directory = arg;
+            posarg++;
         } else {
             return usage();
         }
     }
-    
+
     if (filename == NULL) {
         return usage();
     }
 
+    mkdir(directory, 0777);
+
     FILE* f = fopen(filename, "rb");
     boot_img_hdr header;
 
-    //printf("Reading header...\n");
     int i;
     for (i = 0; i <= 512; i++) {
         fseek(f, i, SEEK_SET);
@@ -129,7 +141,7 @@ int main(int argc, char** argv)
 
     sprintf(base, "%s/%s", directory, basename(filename));
 
-    write_string_to_file(base, "cmdline", header.cmdline);
+    write_string_to_file(base, "cmdline", (char *)header.cmdline);
 
     sprintf(buf, "%08x", baseaddr);
     write_string_to_file(base, "base", buf);
