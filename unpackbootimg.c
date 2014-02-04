@@ -128,7 +128,27 @@ int main(int argc, char** argv)
     fseek(f, i, SEEK_SET);
     printf("Android magic found at: %d\n", i);
 
+    /* Check for Loki-patched image (https://github.com/djrbliss/loki/) */
+    int is_loki = 0;
+    fseek(f, i+1024, SEEK_SET);
+    fread(buf, 4, 1, f);
+    if(memcmp(buf, "LOKI", 4) == 0) {
+        printf("Loki-ized image detected.\n");
+        is_loki = 1;
+    }
+    fseek(f, i, SEEK_SET);
+
     fread(&header, sizeof(header), 1, f);
+    /* Fix up Loki-patched image if needed */
+    if(is_loki) {
+        header.kernel_size = header.dt_size;
+        header.dt_size = 0;
+        header.ramdisk_size = header.unused;
+        header.unused = 0;
+        header.ramdisk_addr = header.second_addr;
+        header.second_addr = 0;
+    }
+
     printf("BOARD_KERNEL_CMDLINE %s\n", header.cmdline);
     printf("BOARD_KERNEL_BASE %08x\n", header.kernel_addr - 0x00008000);
     printf("BOARD_PAGE_SIZE %d\n", header.page_size);
